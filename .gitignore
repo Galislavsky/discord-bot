@@ -1,0 +1,13 @@
+# Sekrety i konfiguracja serwera
+.env
+config.json
+
+# Dane bota
+baza.json
+baza.json.tmp
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
