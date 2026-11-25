@@ -1,83 +1,87 @@
+🇬🇧 **English** | 🇵🇱 [Polska wersja](README.pl.md)
+
 # Discord Bot
 
-Wielofunkcyjny bot na Discorda napisany w Pythonie z użyciem [discord.py](https://github.com/Rapptz/discord.py).
-Łączy system poziomów, moderację, tickety, muzykę i automatyczne powiadomienia w jednym procesie.
+A multi-purpose Discord bot written in Python with [discord.py](https://github.com/Rapptz/discord.py).
+It combines a leveling system, moderation, tickets, music and automatic notifications in a single process.
 
-## Funkcje
+> The bot's messages and commands are in Polish, since it runs on a Polish-speaking server.
 
-**System XP i rang**
-- XP za wiadomości (z cooldownem) i za czas na kanałach głosowych
-- automatyczne nadawanie ról po przekroczeniu progów XP
-- karta profilu generowana jako obrazek (Pillow): avatar, ranga, pasek postępu, miejsce w rankingu
-- codzienny bonus `!daily` z rosnącą nagrodą za serię
-- ranking ogólny i miesięczny; 1. dnia miesiąca najaktywniejsza osoba dostaje rolę VIP
+## Features
 
-**Moderacja i logi**
-- wykrywanie zaproszeń na inne serwery, system ostrzeżeń i automatyczny timeout po 3 ostrzeżeniach
-- logi wejść, wyjść, banów, usuniętych i edytowanych wiadomości
+**XP and ranks**
+- XP for chat messages (with a cooldown) and for time spent on voice channels
+- automatic role assignment when XP thresholds are reached
+- profile card rendered as an image (Pillow): avatar, rank, progress bar, leaderboard position
+- `!daily` bonus with a reward that grows with your streak
+- all-time and monthly leaderboards; on the 1st of each month the most active member gets the VIP role
 
-**Tickety**
-- panel z przyciskiem tworzącym prywatny kanał dla użytkownika i supportu
-- przyciski działają po restarcie bota (persistent views)
-- transkrypt rozmowy zapisywany jako plik `.txt` po zamknięciu ticketu
+**Moderation and logs**
+- detection of invites to other servers, a warning system and an automatic timeout after 3 warnings
+- logs for joins, leaves, bans, deleted and edited messages
 
-**Kanały głosowe i muzyka**
-- Join-to-Create: wejście na kanał tworzy prywatny pokój, który znika, gdy jest pusty
-- odtwarzanie muzyki z kolejką, pauzą, pomijaniem i regulacją głośności (yt-dlp + FFmpeg)
+**Tickets**
+- panel with a button that creates a private channel for the user and the support team
+- buttons keep working after a restart (persistent views)
+- conversation transcript saved as a `.txt` file when the ticket is closed
 
-**Automatyczne powiadomienia**
-- start transmisji na Twitchu (Twitch Helix API, token aplikacji odświeżany automatycznie)
-- nowe filmy na YouTube (kanał RSS, bez klucza API)
-- codzienny mem i przypomnienia o `/bump`
+**Voice channels and music**
+- Join-to-Create: joining a channel creates a private room that is removed once it's empty
+- music playback with a queue, pause, skip and volume control (yt-dlp + FFmpeg)
 
-## Technologie
+**Automatic notifications**
+- Twitch stream start (Twitch Helix API, app access token refreshed automatically)
+- new YouTube videos (RSS feed, no API key needed)
+- daily meme and `/bump` reminders
 
-Python 3.11+ · discord.py · asyncio / aiohttp · Pillow · yt-dlp · FFmpeg · JSON jako lekka baza danych
+## Tech stack
 
-## Uruchomienie
+Python 3.11+ · discord.py · asyncio / aiohttp · Pillow · yt-dlp · FFmpeg · JSON as a lightweight database
+
+## Getting started
 
 ```bash
-git clone <adres-repozytorium>
-cd <folder>
+git clone https://github.com/Galislavsky/discord-bot.git
+cd discord-bot
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Wymagany jest też FFmpeg (do muzyki), np. `sudo apt install ffmpeg`.
+FFmpeg is also required for music, e.g. `sudo apt install ffmpeg`.
 
-1. Skopiuj `.env.example` do `.env` i wpisz token bota (oraz opcjonalnie dane aplikacji Twitch).
-2. Skopiuj `config.example.json` do `config.json` i uzupełnij ID kanałów i ról ze swojego serwera.
-3. W [Discord Developer Portal](https://discord.com/developers/applications) włącz intenty **Server Members** i **Message Content**.
-4. Uruchom:
+1. Copy `.env.example` to `.env` and add your bot token (and optionally your Twitch app credentials).
+2. Copy `config.example.json` to `config.json` and fill in the channel and role IDs from your server.
+3. In the [Discord Developer Portal](https://discord.com/developers/applications), enable the **Server Members** and **Message Content** intents.
+4. Run:
 
 ```bash
 python bot.py
 ```
 
-Na serwerze bot może działać pod menedżerem procesów, np. PM2:
+On a server, the bot can run under a process manager such as PM2:
 
 ```bash
 pm2 start bot.py --name discord-bot --interpreter ./venv/bin/python
 ```
 
-## Komendy
+## Commands
 
-| Komenda | Opis |
+| Command | Description |
 |---|---|
-| `!profil [@osoba]` | Karta profilu z XP i rangą |
-| `!daily` | Codzienny bonus XP |
-| `!top`, `!ranking` | Ranking ogólny |
-| `!viptop` | Ranking miesięczny |
-| `!graj <tytuł/link>` | Odtwarzanie muzyki |
-| `!pomin`, `!pauza`, `!wznow`, `!kolejka`, `!glosnosc <0-100>`, `!wyjdz` | Sterowanie muzyką |
-| `!dodaj @osoba` | Dodanie osoby do ticketu |
-| `!ping` | Opóźnienie bota |
+| `!profil [@user]` | Profile card with XP and rank |
+| `!daily` | Daily XP bonus |
+| `!top`, `!ranking` | All-time leaderboard |
+| `!viptop` | Monthly leaderboard |
+| `!graj <title/link>` | Play music |
+| `!pomin`, `!pauza`, `!wznow`, `!kolejka`, `!glosnosc <0-100>`, `!wyjdz` | Skip, pause, resume, queue, volume, leave |
+| `!dodaj @user` | Add someone to a ticket |
+| `!ping` | Bot latency |
 
-Komendy administracyjne: `!ticketpanel`, `!reg`, `!wyczysc <ilość>`, `!usunxp @osoba`, `!nowyfilm <link>`, `!live <link>`, `!ustaw_bump`.
+Admin commands: `!ticketpanel` (ticket panel), `!reg` (server rules), `!wyczysc <amount>` (purge messages), `!usunxp @user` (reset XP), `!nowyfilm <link>` / `!live <link>` (manual announcements), `!ustaw_bump` (reset bump timer).
 
-## O projekcie
+## About
 
-Bot powstał na potrzeby mojego serwera na Discordzie i działa na nim na co dzień (VPS z Ubuntu, proces pod PM2).
-Przy pisaniu kodu korzystałem z pomocy narzędzi AI – pomysły na funkcje, testowanie na żywym serwerze,
-wdrożenie i utrzymanie są moje.
+I built this bot for my own Discord server, where it runs every day (Ubuntu VPS, managed with PM2).
+I used AI tools while writing the code – the feature ideas, testing on a live server,
+deployment and maintenance are my own.
