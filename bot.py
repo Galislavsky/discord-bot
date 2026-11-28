@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import aiohttp
 import discord
 import yt_dlp
+from discord import app_commands
 from discord.ext import commands, tasks
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
@@ -101,6 +102,13 @@ class Bot(commands.Bot):
         # Rejestracja widoków, żeby przyciski ticketów działały po restarcie
         self.add_view(PanelTicketow())
         self.add_view(ZamknijTicket())
+
+    async def on_ready_sync(self):
+        """Rejestruje slash-komendy na serwerach bota (natychmiast, bez czekania na globalną propagację)."""
+        for guild in self.guilds:
+            self.tree.copy_global_to(guild=guild)
+            await self.tree.sync(guild=guild)
+        print(f"Zsynchronizowano slash-komendy ({len(self.tree.get_commands())})")
 
 
 bot = Bot(command_prefix=CFG.get("prefix", "!"), intents=intents)
@@ -195,6 +203,12 @@ async def sprawdz_range(member, xp):
 @bot.event
 async def on_ready():
     print(f"Zalogowano jako {bot.user}")
+    if not getattr(bot, "_zsynchronizowano", False):
+        try:
+            await bot.on_ready_sync()
+            bot._zsynchronizowano = True
+        except discord.HTTPException as e:
+            print(f"[Slash] Błąd synchronizacji: {e}")
     await posprzataj_pokoje_jtc()
     for petla in (przypomnienie_bump, codzienny_mem, naliczaj_xp_voice, rotacja_statusu,
                   rotacja_vip, sprawdz_twitch, sprawdz_youtube):
@@ -624,20 +638,36 @@ async def tylko_na_kanale_komend(ctx):
     raise ZlyKanal()
 
 
-class ZlyKanal(commands.CheckFailure):
+class ZlyKanal(commands.CheckFailure, app_commands.CheckFailure):
     pass
+
+
+async def potwierdz(ctx, emoji, tekst):
+    """Przy komendzie z '!' dodaje reakcję, przy slash-komendzie odpisuje (interakcja musi dostać odpowiedź)."""
+    if ctx.interaction:
+        await ctx.send(f"{emoji} {tekst}")
+    else:
+        await ctx.message.add_reaction(emoji)
 
 
 @bot.event
 async def on_command_error(ctx, error):
+    # Slash-komendy owijają błędy – wyciągamy oryginalny
+    while isinstance(error, (commands.HybridCommandError, commands.CommandInvokeError, app_commands.CommandInvokeError)) \
+            and getattr(error, "original", None):
+        error = error.original
     if isinstance(error, commands.CommandNotFound):
         return
     if isinstance(error, ZlyKanal):
+        tekst = f"⚠️ {ctx.author.mention}, komend bota używaj na <#{ID_KANALU_KOMEND}>"
+        if ctx.interaction:
+            await ctx.send(tekst, ephemeral=True)
+            return
         try:
             await ctx.message.delete()
         except discord.HTTPException:
             pass
-        await ctx.send(f"⚠️ {ctx.author.mention}, komend bota używaj na <#{ID_KANALU_KOMEND}>", delete_after=6)
+        await ctx.send(tekst, delete_after=6)
         return
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("⛔ Nie masz uprawnień do tej komendy.", delete_after=5)
@@ -759,8 +789,10 @@ def nazwa_uzytkownika(guild, user_id):
     return member.mention if member else f"Nieznany (ID: {user_id})"
 
 
-@bot.command()
+@bot.hybrid_command(description="Twoja karta rangi: XP, ranga i miejsce w rankingu")
+@app_commands.describe(member="Czyj profil pokazać (domyślnie Twój)")
 async def profil(ctx, member: discord.Member = None):
+    await ctx.defer()
     member = member or ctx.author
     dane = wczytaj_baze()
     user_id = str(member.id)
@@ -792,7 +824,7 @@ async def profil(ctx, member: discord.Member = None):
     await ctx.send(content=tresc, file=discord.File(karta, filename="karta.png"))
 
 
-@bot.command(aliases=["codzienny", "bonus"])
+@bot.hybrid_command(aliases=["codzienny", "bonus"], description="Odbierz codzienny bonus XP")
 async def daily(ctx):
     if bez_xp(ctx.author):
         await ctx.send("⚠️ Twoja rola nie zbiera XP, więc bonus dzienny Cię nie dotyczy.")
@@ -831,7 +863,7 @@ async def daily(ctx):
     await sprawdz_range(ctx.author, xp)
 
 
-@bot.command()
+@bot.hybrid_command(description="Liderzy rankingu miesięcznego – wyścig o VIP")
 async def viptop(ctx):
     posortowani = posortuj(wczytaj_baze(), "monthly_xp")
     if not posortowani:
@@ -844,7 +876,7 @@ async def viptop(ctx):
     await ctx.send(embed=dodaj_link_strony(discord.Embed(title="👑 Wyścig o VIP", description=opis, color=discord.Color.dark_theme()), "Ranking miesięczny online"))
 
 
-@bot.command()
+@bot.hybrid_command(description="Podium – top 3 w rankingu ogólnym")
 async def top(ctx):
     posortowani = posortuj(wczytaj_baze(), "xp")
     if not posortowani:
@@ -857,7 +889,7 @@ async def top(ctx):
     await ctx.send(embed=dodaj_link_strony(discord.Embed(title="🏆 Podium (ogólne)", description=opis, color=discord.Color.gold())))
 
 
-@bot.command()
+@bot.hybrid_command(description="Pełny ranking XP serwera")
 async def ranking(ctx):
     posortowani = posortuj(wczytaj_baze(), "xp")
     if not posortowani:
@@ -893,7 +925,7 @@ async def usunxp(ctx, member: discord.Member):
 
 # ================= KOMENDY: ADMINISTRACJA =================
 
-@bot.command()
+@bot.hybrid_command(description="Sprawdź opóźnienie bota")
 async def ping(ctx):
     await ctx.send(f"Pong! Opóźnienie: {round(bot.latency * 1000)} ms")
 
@@ -1102,7 +1134,8 @@ async def ticketpanel(ctx):
     await ctx.send(embed=embed, view=PanelTicketow())
 
 
-@bot.command()
+@bot.hybrid_command(description="Dodaj osobę do ticketu (użyj na kanale ticketu)")
+@app_commands.describe(member="Kogo dodać do ticketu")
 async def dodaj(ctx, member: discord.Member):
     """Dodaje osobę do ticketu (użyj na kanale ticketu)."""
     if not czy_ticket(ctx.channel):
@@ -1225,8 +1258,10 @@ async def sprawdz_kanal_muzyki(ctx):
     return vc
 
 
-@bot.command(name="graj", aliases=["play", "p"])
+@bot.hybrid_command(name="graj", aliases=["play", "p"], description="Zagraj muzykę na kanale głosowym")
+@app_commands.describe(zapytanie="Tytuł utworu albo link")
 async def graj(ctx, *, zapytanie: str):
+    await ctx.defer()
     if not ctx.author.voice or not ctx.author.voice.channel:
         await ctx.send("⚠️ Najpierw wejdź na kanał głosowy.")
         return
@@ -1266,41 +1301,47 @@ async def graj(ctx, *, zapytanie: str):
         await graj_nastepny(ctx.guild)
 
 
-@bot.command(aliases=["skip", "s"])
+@bot.hybrid_command(aliases=["skip", "s"], description="Pomiń aktualny utwór")
 async def pomin(ctx):
     vc = await sprawdz_kanal_muzyki(ctx)
     if vc and (vc.is_playing() or vc.is_paused()):
         vc.stop()  # callback po_utworze uruchomi następny utwór
-        await ctx.message.add_reaction("⏭️")
+        await potwierdz(ctx, "⏭️", "Pominięto utwór.")
+    elif vc:
+        await ctx.send("🔇 Teraz nic nie gra (albo nie ma czego wznowić).", ephemeral=True)
 
 
-@bot.command(aliases=["pause"])
+@bot.hybrid_command(aliases=["pause"], description="Wstrzymaj muzykę")
 async def pauza(ctx):
     vc = await sprawdz_kanal_muzyki(ctx)
     if vc and vc.is_playing():
         vc.pause()
-        await ctx.message.add_reaction("⏸️")
+        await potwierdz(ctx, "⏸️", "Wstrzymano muzykę.")
+    elif vc:
+        await ctx.send("🔇 Teraz nic nie gra (albo nie ma czego wznowić).", ephemeral=True)
 
 
-@bot.command(aliases=["resume"])
+@bot.hybrid_command(aliases=["resume"], description="Wznów muzykę")
 async def wznow(ctx):
     vc = await sprawdz_kanal_muzyki(ctx)
     if vc and vc.is_paused():
         vc.resume()
-        await ctx.message.add_reaction("▶️")
+        await potwierdz(ctx, "▶️", "Wznowiono muzykę.")
+    elif vc:
+        await ctx.send("🔇 Teraz nic nie gra (albo nie ma czego wznowić).", ephemeral=True)
 
 
-@bot.command(aliases=["stop", "leave"])
+@bot.hybrid_command(aliases=["stop", "leave"], description="Zatrzymaj muzykę i wyrzuć bota z kanału")
 async def wyjdz(ctx):
     vc = await sprawdz_kanal_muzyki(ctx)
     if vc:
         wyczysc_muzyke(ctx.guild.id)
         vc.stop()
         await vc.disconnect()
-        await ctx.message.add_reaction("👋")
+        await potwierdz(ctx, "👋", "Do usłyszenia!")
 
 
-@bot.command(name="kolejka", aliases=["queue", "q"])
+@bot.hybrid_command(name="kolejka", aliases=["queue", "q"], description="Pokaż kolejkę utworów")
 async def kolejka_cmd(ctx):
     obecny = teraz_gra.get(ctx.guild.id)
     lista = kolejki.get(ctx.guild.id, [])
@@ -1317,8 +1358,9 @@ async def kolejka_cmd(ctx):
     await ctx.send(embed=discord.Embed(title="📜 Kolejka", description=opis, color=discord.Color.green()))
 
 
-@bot.command(name="glosnosc", aliases=["volume", "vol"])
-async def glosnosc_cmd(ctx, procent: int):
+@bot.hybrid_command(name="glosnosc", aliases=["volume", "vol"], description="Ustaw głośność muzyki (0–100)")
+@app_commands.describe(procent="Głośność w procentach")
+async def glosnosc_cmd(ctx, procent: app_commands.Range[int, 0, 100]):
     vc = await sprawdz_kanal_muzyki(ctx)
     if not vc:
         return

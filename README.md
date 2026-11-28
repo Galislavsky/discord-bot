@@ -70,6 +70,8 @@ pm2 start bot.py --name discord-bot --interpreter ./venv/bin/python
 
 ## Commands
 
+Member commands work both as `!command` and as Discord slash commands (`/command`).
+
 | Command | Description |
 |---|---|
 | `!profil [@user]` | Profile card with XP and rank |

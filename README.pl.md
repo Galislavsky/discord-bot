@@ -68,6 +68,8 @@ pm2 start bot.py --name discord-bot --interpreter ./venv/bin/python
 
 ## Komendy
 
+Komendy dla członków działają zarówno jako `!komenda`, jak i jako slash-komendy Discorda (`/komenda`).
+
 | Komenda | Opis |
 |---|---|
 | `!profil [@osoba]` | Karta profilu z XP i rangą |
