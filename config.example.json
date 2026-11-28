@@ -2,7 +2,7 @@
     "prefix": "!",
     "strefa_czasowa": "Europe/Warsaw",
     "nazwa_serwera": "naszym serwerze",
-
+    "strona": "",
     "kanaly": {
         "logi": 0,
         "bump": 0,
@@ -11,18 +11,18 @@
         "czat": 0,
         "ogloszenia": 0,
         "join_to_create": 0,
-        "kategoria_ticketow": 0
+        "kategoria_ticketow": 0,
+        "komendy": 0
     },
-
     "role": {
         "nowy_uzytkownik": 0,
         "vip": 0,
         "ping_youtube": 0,
         "ping_twitch": 0,
         "support": [],
-        "bez_xp": []
+        "bez_xp": [],
+        "ping_aktualizacje": 0
     },
-
     "rangi": {
         "1000": 0,
         "5000": 0,
@@ -30,13 +30,24 @@
         "50000": 0,
         "100000": 0
     },
-
     "twitch_login": "",
     "youtube_channel_id": "",
     "subreddit_memow": "memes",
-
+    "prefiks_ticketow": "tickety",
+    "nazwa_pokoju": "🏠┃pokój {uzytkownik}",
+    "powitania": [
+        "Witaj {uzytkownik}! Rozgość się i czuj się jak u siebie.",
+        "Cześć {uzytkownik}! Wpadaj na czat i przywitaj się z resztą.",
+        "Super, że jesteś, {uzytkownik}! Witamy na {serwer}."
+    ],
     "statusy": [
-        { "typ": "gra", "tekst": "!profil • !daily" },
-        { "typ": "oglada", "tekst": "czat" }
+        {
+            "typ": "gra",
+            "tekst": "!profil • !daily"
+        },
+        {
+            "typ": "oglada",
+            "tekst": "czat"
+        }
     ]
 }

@@ -50,11 +50,13 @@ ID_KANALU_CZATU = KANALY["czat"]
 ID_KANALU_OGLOSZEN = KANALY["ogloszenia"]
 ID_KANALU_JTC = KANALY["join_to_create"]
 ID_KATEGORII_TICKETOW = KANALY["kategoria_ticketow"]
+ID_KANALU_KOMEND = KANALY.get("komendy", 0)
 
 ID_ROLI_NOWY = ROLE["nowy_uzytkownik"]
 ID_ROLI_VIP = ROLE["vip"]
 ID_ROLI_YT = ROLE["ping_youtube"]
 ID_ROLI_TWITCH = ROLE["ping_twitch"]
+ID_ROLI_AKTUALIZACJE = ROLE.get("ping_aktualizacje", 0)
 ID_ROLI_SUPPORT = ROLE["support"]
 ROLE_BEZ_XP = ROLE["bez_xp"]
 
@@ -66,6 +68,14 @@ YOUTUBE_CHANNEL_ID = CFG.get("youtube_channel_id", "")
 SUBREDDIT_MEMOW = CFG.get("subreddit_memow", "memes")
 NAZWA_SERWERA = CFG.get("nazwa_serwera", "serwerze")
 STATUSY = CFG.get("statusy", [])
+STRONA = CFG.get("strona", "")  # np. https://twoja-domena.pl – link do rankingu online
+PREFIKS_TICKETOW = CFG.get("prefiks_ticketow", "tickety")
+NAZWA_POKOJU = CFG.get("nazwa_pokoju", "🏠┃pokój {uzytkownik}")
+POWITANIA = CFG.get("powitania", [
+    "Witaj {uzytkownik}! Rozgość się i czuj się jak u siebie.",
+    "Cześć {uzytkownik}! Wpadaj na czat i przywitaj się z resztą.",
+    "Super, że jesteś, {uzytkownik}! Witamy na {serwer}.",
+])
 
 DAILY_BAZA = 50
 DAILY_ZA_DZIEN = 10
@@ -467,7 +477,7 @@ async def on_voice_state_update(member, before, after):
     # Join-to-Create: tworzenie prywatnego pokoju
     if after.channel and after.channel.id == ID_KANALU_JTC and not member.bot:
         nowy_kanal = await guild.create_voice_channel(
-            name=f"Pokój - {member.display_name}",
+            name=NAZWA_POKOJU.format(uzytkownik=member.display_name)[:100],
             category=after.channel.category,
         )
         dane = wczytaj_baze()
@@ -499,11 +509,7 @@ async def on_member_join(member):
 
     kanal_powitan = bot.get_channel(ID_KANALU_POWITAN)
     if kanal_powitan:
-        powitania = [
-            f"Witaj {member.mention}! Rozgość się i czuj się jak u siebie.",
-            f"Cześć {member.mention}! Wpadaj na czat i przywitaj się z resztą.",
-            f"Super, że jesteś, {member.mention}! Witamy na {NAZWA_SERWERA}.",
-        ]
+        powitania = [p.format(uzytkownik=member.mention, serwer=NAZWA_SERWERA) for p in POWITANIA]
         await kanal_powitan.send(random.choice(powitania))
 
     await wyslij_log(embed_uzytkownika("📥 Nowy użytkownik", discord.Color.green(), member))
@@ -606,9 +612,32 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
+@bot.check
+async def tylko_na_kanale_komend(ctx):
+    """Komendy działają tylko na kanale komend (wyjątki: administracja i !dodaj w tickecie)."""
+    if not ID_KANALU_KOMEND or not ctx.guild:
+        return True
+    if ctx.author.guild_permissions.administrator or ctx.channel.id == ID_KANALU_KOMEND:
+        return True
+    if ctx.command and ctx.command.name == "dodaj" and czy_ticket(ctx.channel):
+        return True
+    raise ZlyKanal()
+
+
+class ZlyKanal(commands.CheckFailure):
+    pass
+
+
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
+        return
+    if isinstance(error, ZlyKanal):
+        try:
+            await ctx.message.delete()
+        except discord.HTTPException:
+            pass
+        await ctx.send(f"⚠️ {ctx.author.mention}, komend bota używaj na <#{ID_KANALU_KOMEND}>", delete_after=6)
         return
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("⛔ Nie masz uprawnień do tej komendy.", delete_after=5)
@@ -719,6 +748,12 @@ def posortuj(dane, klucz):
     return sorted(tylko_uzytkownicy(dane).items(), key=lambda x: x[1].get(klucz, 0), reverse=True)
 
 
+def dodaj_link_strony(embed, tekst="Pełny ranking online"):
+    if STRONA:
+        embed.set_footer(text=f"{tekst}: {STRONA.removeprefix('https://').removeprefix('http://').rstrip('/')}")
+    return embed
+
+
 def nazwa_uzytkownika(guild, user_id):
     member = guild.get_member(int(user_id))
     return member.mention if member else f"Nieznany (ID: {user_id})"
@@ -753,7 +788,8 @@ async def profil(ctx, member: discord.Member = None):
             rysuj_karte, avatar_bytes, member.display_name, rola.name if rola else "Brak rangi",
             xp, p.get("monthly_xp", 0), prog_od, prog_do, miejsce, seria,
         )
-    await ctx.send(file=discord.File(karta, filename="karta.png"))
+    tresc = f"🌐 Twój profil online: <{STRONA.rstrip('/')}/u/{member.id}>" if STRONA else None
+    await ctx.send(content=tresc, file=discord.File(karta, filename="karta.png"))
 
 
 @bot.command(aliases=["codzienny", "bonus"])
@@ -805,7 +841,7 @@ async def viptop(ctx):
     opis = "Osoba z pierwszego miejsca zdobędzie rangę VIP 1. dnia miesiąca!\n\n"
     for miejsce, (u_id, info) in enumerate(posortowani[:3], start=1):
         opis += f"{MEDALE[miejsce]} {nazwa_uzytkownika(ctx.guild, u_id)} - **{info.get('monthly_xp', 0)} pkt**\n"
-    await ctx.send(embed=discord.Embed(title="👑 Wyścig o VIP", description=opis, color=discord.Color.dark_theme()))
+    await ctx.send(embed=dodaj_link_strony(discord.Embed(title="👑 Wyścig o VIP", description=opis, color=discord.Color.dark_theme()), "Ranking miesięczny online"))
 
 
 @bot.command()
@@ -818,7 +854,7 @@ async def top(ctx):
     opis = ""
     for miejsce, (u_id, info) in enumerate(posortowani[:3], start=1):
         opis += f"{MEDALE[miejsce]} {nazwa_uzytkownika(ctx.guild, u_id)} - **{info.get('xp', 0)} XP**\n\n"
-    await ctx.send(embed=discord.Embed(title="🏆 Podium (ogólne)", description=opis, color=discord.Color.gold()))
+    await ctx.send(embed=dodaj_link_strony(discord.Embed(title="🏆 Podium (ogólne)", description=opis, color=discord.Color.gold())))
 
 
 @bot.command()
@@ -835,7 +871,7 @@ async def ranking(ctx):
             opis += "\n*...i pozostali*"
             break
         opis += linijka
-    await ctx.send(embed=discord.Embed(title="📋 Pełny ranking", description=opis, color=discord.Color.blue()))
+    await ctx.send(embed=dodaj_link_strony(discord.Embed(title="📋 Pełny ranking", description=opis, color=discord.Color.blue())))
 
 
 @bot.command()
@@ -953,7 +989,7 @@ class PanelTicketow(discord.ui.View):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="Otwórz ticket", emoji="🎫", style=discord.ButtonStyle.primary,
-                       custom_id="tickety:otworz")
+                       custom_id=f"{PREFIKS_TICKETOW}:ticket_otworz")
     async def otworz(self, interaction: discord.Interaction, button: discord.ui.Button):
         guild = interaction.guild
         user = interaction.user
@@ -1015,7 +1051,7 @@ class ZamknijTicket(discord.ui.View):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="Zamknij ticket", emoji="🔒", style=discord.ButtonStyle.danger,
-                       custom_id="tickety:zamknij")
+                       custom_id=f"{PREFIKS_TICKETOW}:ticket_zamknij")
     async def zamknij(self, interaction: discord.Interaction, button: discord.ui.Button):
         kanal = interaction.channel
         if not czy_ticket(kanal):
@@ -1293,6 +1329,24 @@ async def glosnosc_cmd(ctx, procent: int):
     await ctx.send(f"🔊 Głośność: **{procent}%**")
 
 
+# ================= AKTUALIZACJE =================
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def aktualizacja(ctx, *, tresc: str):
+    """Ogłasza aktualizację serwera/bota na kanale ogłoszeń i pinguje rolę Aktualizacje."""
+    await ctx.message.delete()
+    kanal = kanal_ogloszen(ctx.channel)
+    embed = discord.Embed(title="🆕 Aktualizacja", description=tresc, color=discord.Color.blurple(),
+                          timestamp=discord.utils.utcnow())
+    embed.set_footer(text=f"Ogłosił(a): {ctx.author.display_name}")
+    ping = f"<@&{ID_ROLI_AKTUALIZACJE}>" if ID_ROLI_AKTUALIZACJE else None
+    await kanal.send(content=ping, embed=embed,
+                     allowed_mentions=discord.AllowedMentions(roles=True, everyone=False, users=False))
+    if kanal != ctx.channel:
+        await ctx.send(f"✅ Ogłoszono na {kanal.mention}", delete_after=5)
+
+
 # ================= REGULAMIN =================
 
 @bot.command()
@@ -1318,6 +1372,8 @@ async def reg(ctx):
             f"🏆 **{p}top** i **{p}ranking** – ranking ogólny.\n"
             f"🎵 **{p}graj <tytuł/link>** – muzyka ({p}pomin, {p}pauza, {p}wznow, {p}kolejka, {p}glosnosc, {p}wyjdz).\n"
             "🎫 **Tickety** – kontakt z administracją przez kanał pomocy."
+            + (f"\n🤖 Komend bota używaj na <#{ID_KANALU_KOMEND}>." if ID_KANALU_KOMEND else "")
+            + (f"\n🌐 **Ranking online:** {STRONA}" if STRONA else "")
         ),
         color=0x2B2D31,
     )

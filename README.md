@@ -19,6 +19,7 @@ It combines a leveling system, moderation, tickets, music and automatic notifica
 **Moderation and logs**
 - detection of invites to other servers, a warning system and an automatic timeout after 3 warnings
 - logs for joins, leaves, bans, deleted and edited messages
+- bot commands restricted to a dedicated commands channel (admins and ticket commands are exempt)
 
 **Tickets**
 - panel with a button that creates a private channel for the user and the support team
@@ -26,13 +27,15 @@ It combines a leveling system, moderation, tickets, music and automatic notifica
 - conversation transcript saved as a `.txt` file when the ticket is closed
 
 **Voice channels and music**
-- Join-to-Create: joining a channel creates a private room that is removed once it's empty
+- Join-to-Create: joining a channel creates a private room (name template set in the config) that is removed once it's empty
 - music playback with a queue, pause, skip and volume control (yt-dlp + FFmpeg)
 
 **Automatic notifications**
 - Twitch stream start (Twitch Helix API, app access token refreshed automatically)
 - new YouTube videos (RSS feed, no API key needed)
 - daily meme and `/bump` reminders
+- `!aktualizacja` – server update announcements with a ping for an opt-in role
+- links to an optional web leaderboard ([discord-panel](https://github.com/Galislavsky/discord-panel)) in `!top`, `!ranking` and `!profil`
 
 ## Tech stack
 
@@ -78,7 +81,7 @@ pm2 start bot.py --name discord-bot --interpreter ./venv/bin/python
 | `!dodaj @user` | Add someone to a ticket |
 | `!ping` | Bot latency |
 
-Admin commands: `!ticketpanel` (ticket panel), `!reg` (server rules), `!wyczysc <amount>` (purge messages), `!usunxp @user` (reset XP), `!nowyfilm <link>` / `!live <link>` (manual announcements), `!ustaw_bump` (reset bump timer).
+Admin commands: `!ticketpanel` (ticket panel), `!reg` (server rules), `!wyczysc <amount>` (purge messages), `!usunxp @user` (reset XP), `!nowyfilm <link>` / `!live <link>` (manual announcements), `!aktualizacja <text>` (update announcement), `!ustaw_bump` (reset bump timer).
 
 ## About
 

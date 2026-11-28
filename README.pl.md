@@ -17,6 +17,7 @@ Wielofunkcyjny bot na Discorda napisany w Pythonie z użyciem [discord.py](https
 **Moderacja i logi**
 - wykrywanie zaproszeń na inne serwery, system ostrzeżeń i automatyczny timeout po 3 ostrzeżeniach
 - logi wejść, wyjść, banów, usuniętych i edytowanych wiadomości
+- komendy bota działają tylko na wyznaczonym kanale komend (wyjątki: administracja i komendy w ticketach)
 
 **Tickety**
 - panel z przyciskiem tworzącym prywatny kanał dla użytkownika i supportu
@@ -24,13 +25,15 @@ Wielofunkcyjny bot na Discorda napisany w Pythonie z użyciem [discord.py](https
 - transkrypt rozmowy zapisywany jako plik `.txt` po zamknięciu ticketu
 
 **Kanały głosowe i muzyka**
-- Join-to-Create: wejście na kanał tworzy prywatny pokój, który znika, gdy jest pusty
+- Join-to-Create: wejście na kanał tworzy prywatny pokój (wzór nazwy w configu), który znika, gdy jest pusty
 - odtwarzanie muzyki z kolejką, pauzą, pomijaniem i regulacją głośności (yt-dlp + FFmpeg)
 
 **Automatyczne powiadomienia**
 - start transmisji na Twitchu (Twitch Helix API, token aplikacji odświeżany automatycznie)
 - nowe filmy na YouTube (kanał RSS, bez klucza API)
 - codzienny mem i przypomnienia o `/bump`
+- `!aktualizacja` – ogłoszenia o zmianach na serwerze z pingiem roli, którą członkowie wybierają sami
+- linki do opcjonalnego rankingu online ([discord-panel](https://github.com/Galislavsky/discord-panel)) w `!top`, `!ranking` i `!profil`
 
 ## Technologie
 
@@ -76,7 +79,7 @@ pm2 start bot.py --name discord-bot --interpreter ./venv/bin/python
 | `!dodaj @osoba` | Dodanie osoby do ticketu |
 | `!ping` | Opóźnienie bota |
 
-Komendy administracyjne: `!ticketpanel`, `!reg`, `!wyczysc <ilość>`, `!usunxp @osoba`, `!nowyfilm <link>`, `!live <link>`, `!ustaw_bump`.
+Komendy administracyjne: `!ticketpanel`, `!reg`, `!wyczysc <ilość>`, `!usunxp @osoba`, `!nowyfilm <link>`, `!live <link>`, `!aktualizacja <tekst>`, `!ustaw_bump`.
 
 ## O projekcie
 
